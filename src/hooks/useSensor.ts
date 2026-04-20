@@ -29,28 +29,25 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
     }
   }, []);
 
-  const requestPermission = async (): Promise<void> => {
-    const DeviceOrientation =
-      window.DeviceOrientationEvent as typeof DeviceOrientationEventWithPermission;
-
+  const requestPermission = async () => {
     if (
-      typeof DeviceOrientation !== 'undefined' &&
-      typeof DeviceOrientation.requestPermission === 'function'
-    ) {
-      try {
-        const permissionState = await DeviceOrientation.requestPermission();
-
-        if (permissionState === 'granted') {
-          setPermissionGranted(true);
-        } else {
-          alert("Permission denied. Ensure you are on HTTPS.");
-        }
-      } catch (error) {
-        console.error('Permission error. HTTPS is required.', error);
-        alert(
-          "Sensor error. Note: Device Sensors usually require HTTPS on modern browsers."
-        );
+    typeof window !== "undefined" &&
+    typeof window.DeviceOrientationEvent !== "undefined" &&
+    typeof (window.DeviceOrientationEvent as any).requestPermission === "function"
+  ) {
+    try {
+      const response = await (window.DeviceOrientationEvent as any).requestPermission();
+      if (response === "granted") {
+        window.addEventListener("deviceorientation", handleOrientation);
       }
+    } catch (err) {
+      console.error(err);
+    }
+  } else {
+    window.addEventListener("deviceorientation", handleOrientation);
+  }
+
+    
     } else {
       // Non-iOS devices
       setPermissionGranted(true);

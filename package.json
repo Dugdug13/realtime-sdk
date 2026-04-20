@@ -34,12 +34,18 @@
   },
   "main": "v1-dist/cjs/index.js",
   "module": "v1-dist/esm/index.js",
+  "exports": {
+    ".": {
+      "import": "./v1-dist/esm/index.js",
+      "require": "./v1-dist/cjs/index.js"
+    }
+  },
   "files": [
 
     "v1-dist"
   ],
   
-  "types": "dist/index.d.ts",
+  "types": "v1-dist/index.d.ts",
   "type": "module",
   "dependencies": {
     "socket.io-client": "^4.8.1",
