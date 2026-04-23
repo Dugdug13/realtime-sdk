@@ -24,53 +24,41 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
     }
   }, []);
 
-  // ✅ define handler ONCE (important)
-  const handleOrientation = (e: DeviceOrientationEvent) => {
-    if (e.alpha === null && e.beta === null && e.gamma === null) return;
-
-    callback?.({
-      alpha: e.alpha ?? 0,
-      beta: e.beta ?? 0,
-      gamma: e.gamma ?? 0
-    });
-  };
-
   const requestPermission = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-    const DeviceOrientation = window.DeviceOrientationEvent as any;
-
-    // ✅ iOS Safari permission flow
-    if (typeof DeviceOrientation?.requestPermission === 'function') {
+    if (
+      typeof (DeviceOrientationEvent as any).requestPermission === "function"
+    ) {
       try {
-        const response = await DeviceOrientation.requestPermission();
-
+        const response = await (
+          DeviceOrientationEvent as any
+        ).requestPermission();
         if (response === 'granted') {
           setPermissionGranted(true);
-          window.addEventListener('deviceorientation', handleOrientation);
         }
       } catch (err) {
-        console.error(err);
+        console.error('Permission request failed:', err);
       }
     } else {
-      // ✅ Android / normal browsers
       setPermissionGranted(true);
-
-      if (
-        window.location.protocol === 'http:' &&
-        window.location.hostname !== 'localhost'
-      ) {
-        alert(
-          'Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP.'
-        );
-      }
-
-      window.addEventListener('deviceorientation', handleOrientation);
     }
   };
 
   // cleanup
   useEffect(() => {
+    if (!permissionGranted) return;
+
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.alpha === null && e.beta === null && e.gamma === null) return;
+      callback?.({
+        alpha: e.alpha ?? 0,
+        beta: e.beta ?? 0,
+        gamma: e.gamma ?? 0,
+      });
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
     };

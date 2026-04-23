@@ -12,13 +12,13 @@ export default [
     input: "src/index.ts",
     output: [
       {
-        file: "v1-dist/cjs/index.js",
+        file: "dist/cjs/index.js",
         format: "cjs",
         sourcemap: true,
         exports: "named",
       },
       {
-        file: "v1-dist/esm/index.js",
+        file: "dist/esm/index.js",
         format: "esm",
         sourcemap: true,
         exports: "named",
@@ -30,9 +30,9 @@ export default [
       typescript({
         tsconfig: "./tsconfig.json",
         declaration: true,
-        declarationDir: "v1-dist",
+        declarationDir: "dist",
       }),
     ],
-    external: ["react", "react-dom", "framer-motion", "styled-components"],
+    external: ["react", "react-dom", "framer-motion"],
   },
 ];

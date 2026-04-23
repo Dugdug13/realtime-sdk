@@ -1,4 +1,3 @@
-export const useSwipeSanityCheck = () => "test";
 export * from './components';
 export { useSwipe } from './hooks/useSwipe';
 export { useDrag } from './hooks/useDrag';
