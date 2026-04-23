@@ -23,32 +23,29 @@
     "rollup": "^4.5.0",
     "rollup-plugin-dts": "^6.1.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
-
     "rollup-plugin-terser": "^7.0.2",
     "typescript": "^5.2.2"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^19.0.0",
+    "react-dom": "19.0.0",
     "framer-motion": ">=10.0.0"
   },
-  "main": "v1-dist/cjs/index.js",
-  "module": "v1-dist/esm/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "exports": {
     ".": {
-      "import": "./v1-dist/esm/index.js",
-      "require": "./v1-dist/cjs/index.js"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "files": [
-
-    "v1-dist"
+    "dist"
   ],
-  
-  "types": "v1-dist/index.d.ts",
+  "types": "dist/index.d.ts",
   "type": "module",
   "dependencies": {
-    "socket.io-client": "^4.8.1",
+    "@mediapipe/tasks-vision": "^0.10.3",
     "tslib": "^2.6.2"
   }
 }

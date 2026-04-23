@@ -30,36 +30,23 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
   }, []);
 
   const requestPermission = async () => {
+    if (typeof window === "undefined") return;
+
     if (
-    typeof window !== "undefined" &&
-    typeof window.DeviceOrientationEvent !== "undefined" &&
-    typeof (window.DeviceOrientationEvent as any).requestPermission === "function"
-  ) {
-    try {
-      const response = await (window.DeviceOrientationEvent as any).requestPermission();
-      if (response === "granted") {
-        window.addEventListener("deviceorientation", handleOrientation);
+      typeof (DeviceOrientationEvent as any).requestPermission === "function"
+    ) {
+      try {
+        const response = await (
+          DeviceOrientationEvent as any
+        ).requestPermission();
+        if (response === 'granted') {
+          setPermissionGranted(true);
+        }
+      } catch (err) {
+        console.error('Permission request failed:', err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  } else {
-    window.addEventListener("deviceorientation", handleOrientation);
-  }
-
-    
     } else {
-      // Non-iOS devices
       setPermissionGranted(true);
-
-      if (
-        window.location.protocol === 'http:' &&
-        window.location.hostname !== 'localhost'
-      ) {
-        alert(
-          "Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP."
-        );
-      }
     }
   };
 
@@ -68,16 +55,14 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
 
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.alpha === null && e.beta === null && e.gamma === null) return;
-
       callback?.({
         alpha: e.alpha ?? 0,
         beta: e.beta ?? 0,
-        gamma: e.gamma ?? 0
+        gamma: e.gamma ?? 0,
       });
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
-
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
     };
