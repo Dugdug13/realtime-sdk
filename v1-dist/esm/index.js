@@ -605,51 +605,50 @@ const useSensor = (callback) => {
             setIsSupported(true);
         }
     }, []);
+    // ✅ define handler ONCE (important)
+    const handleOrientation = (e) => {
+        var _a, _b, _c;
+        if (e.alpha === null && e.beta === null && e.gamma === null)
+            return;
+        callback === null || callback === void 0 ? void 0 : callback({
+            alpha: (_a = e.alpha) !== null && _a !== void 0 ? _a : 0,
+            beta: (_b = e.beta) !== null && _b !== void 0 ? _b : 0,
+            gamma: (_c = e.gamma) !== null && _c !== void 0 ? _c : 0
+        });
+    };
     const requestPermission = () => __awaiter(void 0, void 0, void 0, function* () {
+        if (typeof window === 'undefined')
+            return;
         const DeviceOrientation = window.DeviceOrientationEvent;
-        if (typeof DeviceOrientation !== 'undefined' &&
-            typeof DeviceOrientation.requestPermission === 'function') {
+        // ✅ iOS Safari permission flow
+        if (typeof (DeviceOrientation === null || DeviceOrientation === void 0 ? void 0 : DeviceOrientation.requestPermission) === 'function') {
             try {
-                const permissionState = yield DeviceOrientation.requestPermission();
-                if (permissionState === 'granted') {
+                const response = yield DeviceOrientation.requestPermission();
+                if (response === 'granted') {
                     setPermissionGranted(true);
-                }
-                else {
-                    alert("Permission denied. Ensure you are on HTTPS.");
+                    window.addEventListener('deviceorientation', handleOrientation);
                 }
             }
-            catch (error) {
-                console.error('Permission error. HTTPS is required.', error);
-                alert("Sensor error. Note: Device Sensors usually require HTTPS on modern browsers.");
+            catch (err) {
+                console.error(err);
             }
         }
         else {
-            // Non-iOS devices
+            // ✅ Android / normal browsers
             setPermissionGranted(true);
             if (window.location.protocol === 'http:' &&
                 window.location.hostname !== 'localhost') {
-                alert("Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP.");
+                alert('Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP.');
             }
+            window.addEventListener('deviceorientation', handleOrientation);
         }
     });
+    // cleanup
     useEffect(() => {
-        if (!permissionGranted)
-            return;
-        const handleOrientation = (e) => {
-            var _a, _b, _c;
-            if (e.alpha === null && e.beta === null && e.gamma === null)
-                return;
-            callback === null || callback === void 0 ? void 0 : callback({
-                alpha: (_a = e.alpha) !== null && _a !== void 0 ? _a : 0,
-                beta: (_b = e.beta) !== null && _b !== void 0 ? _b : 0,
-                gamma: (_c = e.gamma) !== null && _c !== void 0 ? _c : 0
-            });
-        };
-        window.addEventListener('deviceorientation', handleOrientation);
         return () => {
             window.removeEventListener('deviceorientation', handleOrientation);
         };
-    }, [permissionGranted, callback]);
+    }, []);
     return { requestPermission, permissionGranted, isSupported };
 };
 

@@ -14,14 +14,9 @@ type UseSensorReturn = {
   isSupported: boolean;
 };
 
-// Extend for iOS Safari (non-standard typing)
-interface DeviceOrientationEventWithPermission extends DeviceOrientationEvent {
-  requestPermission?: () => Promise<'granted' | 'denied'>;
-}
-
 export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
-  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
-  const [isSupported, setIsSupported] = useState<boolean>(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
@@ -29,27 +24,36 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
     }
   }, []);
 
-  const requestPermission = async () => {
-    if (
-    typeof window !== "undefined" &&
-    typeof window.DeviceOrientationEvent !== "undefined" &&
-    typeof (window.DeviceOrientationEvent as any).requestPermission === "function"
-  ) {
-    try {
-      const response = await (window.DeviceOrientationEvent as any).requestPermission();
-      if (response === "granted") {
-        window.addEventListener("deviceorientation", handleOrientation);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  } else {
-    window.addEventListener("deviceorientation", handleOrientation);
-  }
+  // ✅ define handler ONCE (important)
+  const handleOrientation = (e: DeviceOrientationEvent) => {
+    if (e.alpha === null && e.beta === null && e.gamma === null) return;
 
-    
+    callback?.({
+      alpha: e.alpha ?? 0,
+      beta: e.beta ?? 0,
+      gamma: e.gamma ?? 0
+    });
+  };
+
+  const requestPermission = async () => {
+    if (typeof window === 'undefined') return;
+
+    const DeviceOrientation = window.DeviceOrientationEvent as any;
+
+    // ✅ iOS Safari permission flow
+    if (typeof DeviceOrientation?.requestPermission === 'function') {
+      try {
+        const response = await DeviceOrientation.requestPermission();
+
+        if (response === 'granted') {
+          setPermissionGranted(true);
+          window.addEventListener('deviceorientation', handleOrientation);
+        }
+      } catch (err) {
+        console.error(err);
+      }
     } else {
-      // Non-iOS devices
+      // ✅ Android / normal browsers
       setPermissionGranted(true);
 
       if (
@@ -57,31 +61,20 @@ export const useSensor = (callback?: SensorCallback): UseSensorReturn => {
         window.location.hostname !== 'localhost'
       ) {
         alert(
-          "Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP."
+          'Warning: DeviceOrientation usually requires HTTPS. Sensors might fail on HTTP.'
         );
       }
+
+      window.addEventListener('deviceorientation', handleOrientation);
     }
   };
 
+  // cleanup
   useEffect(() => {
-    if (!permissionGranted) return;
-
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.alpha === null && e.beta === null && e.gamma === null) return;
-
-      callback?.({
-        alpha: e.alpha ?? 0,
-        beta: e.beta ?? 0,
-        gamma: e.gamma ?? 0
-      });
-    };
-
-    window.addEventListener('deviceorientation', handleOrientation);
-
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
     };
-  }, [permissionGranted, callback]);
+  }, []);
 
   return { requestPermission, permissionGranted, isSupported };
 };

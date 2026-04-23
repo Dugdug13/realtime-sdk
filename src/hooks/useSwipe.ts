@@ -35,8 +35,7 @@ export const useSwipe = (
   callback?: SwipeCallback,
   {
     threshold = 50,
-    timeout = 500,
-    velocityThreshold = 0.5
+    velocityThreshold = 0.3
   }: UseSwipeOptions = {}
 ) => {
   const stateRef = useRef<InternalState>({
@@ -45,98 +44,91 @@ export const useSwipe = (
     isSwiping: false
   });
 
-  const handleStart = useCallback(
-    (clientX: number, clientY: number) => {
-      stateRef.current = {
-        start: { x: clientX, y: clientY },
-        timeStart: Date.now(),
-        isSwiping: true
-      };
+  const handleStart = useCallback((clientX: number, clientY: number) => {
+    stateRef.current = {
+      start: { x: clientX, y: clientY },
+      timeStart: Date.now(),
+      isSwiping: true
+    };
 
-      callback?.({
-        active: true,
-        direction: null,
-        distance: { x: 0, y: 0 },
-        velocity: 0,
-        first: true,
-        last: false
-      });
-    },
-    [callback]
-  );
+    callback?.({
+      active: true,
+      direction: null,
+      distance: { x: 0, y: 0 },
+      velocity: 0,
+      first: true,
+      last: false
+    });
+  }, [callback]);
 
-  const handleMove = useCallback(
-    (clientX: number, clientY: number) => {
-      const s = stateRef.current;
-      if (!s.isSwiping || !s.start) return;
+  const handleMove = useCallback((clientX: number, clientY: number) => {
+    const s = stateRef.current;
+    if (!s.isSwiping || !s.start) return;
 
-      const distanceX = clientX - s.start.x;
-      const distanceY = clientY - s.start.y;
+    const dx = clientX - s.start.x;
+    const dy = clientY - s.start.y;
 
-      callback?.({
-        active: true,
-        direction: null,
-        distance: { x: distanceX, y: distanceY },
-        velocity: 0,
-        first: false,
-        last: false
-      });
-    },
-    [callback]
-  );
+    callback?.({
+      active: true,
+      direction: null,
+      distance: { x: dx, y: dy },
+      velocity: 0,
+      first: false,
+      last: false
+    });
+  }, [callback]);
 
-  const handleEnd = useCallback(
-    (clientX: number, clientY: number) => {
-      const s = stateRef.current;
-      if (!s.start || s.timeStart === null) return;
+  const handleEnd = useCallback((clientX: number, clientY: number) => {
+    const s = stateRef.current;
+    if (!s.start || s.timeStart === null) return;
 
-      const distanceX = clientX - s.start.x;
-      const distanceY = clientY - s.start.y;
-      const deltaTime = Date.now() - s.timeStart;
+    const dx = clientX - s.start.x;
+    const dy = clientY - s.start.y;
+    const deltaTime = Date.now() - s.timeStart;
 
-      let direction: SwipeDirection = null;
+    const velocity = Math.sqrt(dx * dx + dy * dy) / deltaTime;
 
-      const velocityX = Math.abs(distanceX) / deltaTime;
-      const velocityY = Math.abs(distanceY) / deltaTime;
-      const overallVelocity =
-        Math.sqrt(distanceX ** 2 + distanceY ** 2) / deltaTime;
+    let direction: SwipeDirection = null;
 
-      if (deltaTime < timeout || overallVelocity > velocityThreshold) {
-        if (Math.abs(distanceX) > Math.abs(distanceY)) {
-          if (
-            Math.abs(distanceX) > threshold ||
-            velocityX > velocityThreshold
-          ) {
-            direction = distanceX > 0 ? 'right' : 'left';
-          }
-        } else {
-          if (
-            Math.abs(distanceY) > threshold ||
-            velocityY > velocityThreshold
-          ) {
-            direction = distanceY > 0 ? 'down' : 'up';
-          }
-        }
+    // ✅ Primary: distance-based detection
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (Math.abs(dx) > threshold) {
+        direction = dx > 0 ? 'right' : 'left';
       }
+    } else {
+      if (Math.abs(dy) > threshold) {
+        direction = dy > 0 ? 'down' : 'up';
+      }
+    }
 
-      callback?.({
-        active: false,
-        first: false,
-        last: true,
-        direction,
-        distance: { x: distanceX, y: distanceY },
-        velocity: overallVelocity,
-        time: deltaTime
-      });
+    // ✅ Fallback: fast swipe
+    if (!direction && velocity > velocityThreshold) {
+      direction =
+        Math.abs(dx) > Math.abs(dy)
+          ? dx > 0
+            ? 'right'
+            : 'left'
+          : dy > 0
+          ? 'down'
+          : 'up';
+    }
 
-      stateRef.current = {
-        start: null,
-        timeStart: null,
-        isSwiping: false
-      };
-    },
-    [threshold, timeout, velocityThreshold, callback]
-  );
+    callback?.({
+      active: false,
+      first: false,
+      last: true,
+      direction,
+      distance: { x: dx, y: dy },
+      velocity,
+      time: deltaTime
+    });
+
+    stateRef.current = {
+      start: null,
+      timeStart: null,
+      isSwiping: false
+    };
+  }, [threshold, velocityThreshold, callback]);
 
   return {
     onTouchStart: (e: React.TouchEvent) =>
@@ -151,11 +143,15 @@ export const useSwipe = (
         e.changedTouches[0].clientY
       ),
 
-    onMouseDown: (e: React.MouseEvent) =>
-      handleStart(e.clientX, e.clientY),
+    onMouseDown: (e: React.MouseEvent) => {
+      e.preventDefault();
+      handleStart(e.clientX, e.clientY);
+    },
 
-    onMouseMove: (e: React.MouseEvent) =>
-      handleMove(e.clientX, e.clientY),
+    onMouseMove: (e: React.MouseEvent) => {
+      if (!stateRef.current.isSwiping) return;
+      handleMove(e.clientX, e.clientY);
+    },
 
     onMouseUp: (e: React.MouseEvent) =>
       handleEnd(e.clientX, e.clientY),
