@@ -38,6 +38,11 @@ export const useContactless = (
   const streamRef = useRef<MediaStream | null>(null);
   const isRunning = useRef(false);
   const [isReady, setIsReady] = useState(false);
+  const callbackRef = useRef(callback);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   const tracking = useRef<TrackingState>({
     historyX: [],
@@ -88,7 +93,11 @@ export const useContactless = (
 
       videoElement.onloadedmetadata = () => {
         videoElement.play();
-        predictWebcam();
+        isRunning.current = true;
+        // Delay prediction to ensure camera stream is stable and has dimensions
+        setTimeout(() => {
+          predictWebcam();
+        }, 500);
       };
     } catch (e) {
       console.error("Error accessing camera", e);
@@ -142,7 +151,7 @@ export const useContactless = (
         );
 
         if (indexDist < 0.1 && wristDist < 0.15) {
-          semanticGesture = 'PRANAM';
+          semanticGesture = 'Asalam walekum Lyaari';
           tracking.current.cooldownEnd = now + 1500;
         }
       }
@@ -155,25 +164,31 @@ export const useContactless = (
       if (!semanticGesture) {
         if (currentName !== tracking.current.lastGestureName) {
           if (currentName === 'Closed_Fist') {
-            semanticGesture = 'FIST';
+            semanticGesture = 'Fist';
+            tracking.current.cooldownEnd = now + 400;
+          } else if (currentName === 'Pointing_Up') {
+            semanticGesture = 'Single Finger';
+            tracking.current.cooldownEnd = now + 400;
+          } else if (currentName === 'Victory') {
+            semanticGesture = 'V-shape';
             tracking.current.cooldownEnd = now + 400;
           } else if (currentName === 'Open_Palm') {
             if (
               now - tracking.current.lastOpenPalmTime < 800 &&
               now - tracking.current.lastOpenPalmTime > 100
             ) {
-              semanticGesture = 'DOUBLE_PALM';
+              semanticGesture = 'Double Palm';
               tracking.current.lastOpenPalmTime = 0;
               tracking.current.cooldownEnd = now + 1000;
             } else {
-              semanticGesture = 'OPEN_PALM';
+              semanticGesture = 'Open Palm';
               tracking.current.lastOpenPalmTime = now;
               tracking.current.cooldownEnd = now + 400;
             }
           }
         }
 
-        // Swipe
+        // Swipe logic (Only if palm is open)
         const wristX = results.landmarks[0][0].x;
 
         if (tracking.current.historyX.length > 0 && !semanticGesture) {
@@ -188,6 +203,7 @@ export const useContactless = (
           if (deltaTime > 0) {
             const velocity = deltaX / deltaTime;
 
+            // Sensitivity filter
             if (Math.abs(velocity) > 0.0008) {
               tracking.current.swipeAccumulator += deltaX;
             } else {
@@ -197,14 +213,20 @@ export const useContactless = (
             if (
               Math.abs(tracking.current.swipeAccumulator) > swipeThreshold
             ) {
-              semanticGesture =
-                tracking.current.swipeAccumulator > 0
-                  ? 'SWIPE_LEFT'
-                  : 'SWIPE_RIGHT';
+              // Ensure it's an open palm swipe as requested
+              if (currentName === 'Open_Palm') {
+                semanticGesture =
+                  tracking.current.swipeAccumulator > 0
+                    ? 'Right Swipe'
+                    : 'Left Swipe';
 
-              tracking.current.swipeAccumulator = 0;
-              tracking.current.historyX = [];
-              tracking.current.cooldownEnd = now + 1000;
+                tracking.current.swipeAccumulator = 0;
+                tracking.current.historyX = [];
+                tracking.current.cooldownEnd = now + 1000;
+              } else {
+                // Reset accumulator if hand is not in open palm
+                tracking.current.swipeAccumulator = 0;
+              }
             }
           }
         }
@@ -230,17 +252,25 @@ export const useContactless = (
     const tick = () => {
       if (!isRunning.current || !videoRef.current || !recognizerRef.current) return;
 
-      if (videoRef.current.currentTime !== lastVideoTime) {
+      if (
+        videoRef.current.currentTime !== lastVideoTime &&
+        videoRef.current.videoWidth > 0 &&
+        videoRef.current.videoHeight > 0
+      ) {
         lastVideoTime = videoRef.current.currentTime;
 
-        const results = recognizerRef.current.recognizeForVideo(
-          videoRef.current,
-          performance.now()
-        ) as GestureResult;
+        try {
+          const results = recognizerRef.current.recognizeForVideo(
+            videoRef.current,
+            performance.now()
+          ) as GestureResult;
 
-        const semanticGesture = processComplexGestures(results);
+          const semanticGesture = processComplexGestures(results);
 
-        callback?.({ results, semanticGesture });
+          callbackRef.current?.({ results, semanticGesture });
+        } catch (e) {
+          console.debug("MediaPipe recognition skipped for this frame:", e);
+        }
       }
 
       requestAnimationFrame(tick);

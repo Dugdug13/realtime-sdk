@@ -1,6 +1,6 @@
 {
   "name": "react-kinetic-ui",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A unified React Gesture library with sensor and contactless support, built on top of Framer Motion.",
   "scripts": {
     "rollup": "rollup -c",
